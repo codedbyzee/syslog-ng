@@ -8,8 +8,9 @@
 ![Kafka](https://img.shields.io/badge/Apache%20Kafka-3.9-231F20?logo=apachekafka&logoColor=white)
 ![ClickHouse](https://img.shields.io/badge/ClickHouse-24.12-FFCC01?logo=clickhouse&logoColor=black)
 ![Grafana](https://img.shields.io/badge/Grafana-11.4-F46800?logo=grafana&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+![License](https://img.shields.io/badge/License-MIT-64BC4B.svg?logo=wikibooks&logoColor=white)
 ---
+
 
 ## Overview
 
@@ -18,7 +19,6 @@ The platform collects **IPDR (Internet Protocol Detail Records)** from network d
 Incoming syslog messages are streamed through Kafka, stored in ClickHouse, aggregated in real time, and visualized using Grafana.
 
 Designed for:
-
 - ISPs
 - Broadband providers
 - Network Operations Centers (NOC)
