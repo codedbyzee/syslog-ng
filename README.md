@@ -229,6 +229,4 @@ This warning does **not** affect IPDR collection.
 
 ## License
 
-Copyright © 2026 Terminus Technologies. All rights reserved.
-
-This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use of this software, in whole or in part, is strictly prohibited without prior written permission from Terminus Technologies.
+This project is licensed under the [MIT License](LICENSE).
