@@ -40,19 +40,17 @@ Designed for:
 
 ## Architecture & Data Flow
 
-```mermaid
-flowchart LR
-
-BRAS["MikroTik / vBNG"]
-SYSLOG["Syslog-NG"]
-KAFKA["Kafka"]
-CLICKHOUSE["ClickHouse"]
-GRAFANA["Grafana"]
-
-BRAS --> SYSLOG
-SYSLOG --> KAFKA
-KAFKA --> CLICKHOUSE
-CLICKHOUSE --> GRAFANA
+```
+                        ┌─────────────────┐
+                        │  MikroTik/vBNG  │  ← Provided by customer
+                        └────────┬────────┘
+                                 │ UDP :514
+                                 ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │ ┌─────────────┐   ┌───────┐   ┌────────────┐   ┌──────────┐ │
+    │ │  Syslog-NG  │ → │ Kafka │ → │ ClickHouse │ → │ Grafana  │ │
+    │ └─────────────┘   └───────┘   └────────────┘   └──────────┘ │
+    └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
