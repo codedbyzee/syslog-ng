@@ -1,6 +1,6 @@
 # IPDR Platform
 
-> High-performance ISP IPDR collection platform built with **Syslog-NG**, **Kafka**, **ClickHouse**, and **Grafana**.
+> High-performance ISP IPDR collection platform built with **Syslog-NG → Kafka → ClickHouse → Grafana**.
 
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04-E95420?logo=ubuntu&logoColor=white)
@@ -9,79 +9,72 @@
 ![ClickHouse](https://img.shields.io/badge/ClickHouse-24.12-FFCC01?logo=clickhouse&logoColor=black)
 ![Grafana](https://img.shields.io/badge/Grafana-11.4-F46800?logo=grafana&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-64BC4B.svg?logo=wikibooks&logoColor=white)
----
 
+---
 
 ## Overview
 
-The platform collects **IPDR (Internet Protocol Detail Records)** from network devices such as **MikroTik BRAS**, **vBNG**, and other syslog-enabled equipment.
+Collects **IPDR (Internet Protocol Detail Records)** from **vBNG** (Huawei NAT) and **MikroTik** routers. Syslog messages flow through Kafka, are stored in ClickHouse, aggregated in real-time, and visualized in Grafana.
 
-Incoming syslog messages are streamed through Kafka, stored in ClickHouse, aggregated in real time, and visualized using Grafana.
-
-Designed for:
-- ISPs
-- Broadband providers
-- Network Operations Centers (NOC)
-- Large-scale subscriber analytics
+Designed for ISPs, broadband providers, and NOCs.
 
 ---
 
-## Features
-
-- High-performance syslog ingestion
-- Native Kafka streaming
-- ClickHouse real-time analytics
-- Automatic aggregations using Materialized Views
-- Pre-built Grafana dashboards
-- Single-node Docker deployment
-- Vendor-independent architecture
-- Easily extensible for additional BRAS vendors
-
----
-
-## Architecture & Data Flow
+## Data Flow
 
 ```
                                     ┌─────────────────────┐
-                                    │  MikroTik/vBNG/etc  │
+                                    │  MikroTik / vBNG    │
                                     ├─────────────────────┤
-                                    │  MikroTik/vBNG/etc  │
+                                    │  MikroTik / vBNG    │
                                     ├─────────────────────┤
-                                    │  MikroTik/vBNG/etc  │
+                                    │  MikroTik / vBNG    │
                                     └──────────┬──────────┘
-                                               │ 
+                                               │ UDP 514 / TLS 6514
                                                ▼
              ┌───────────────────────────────────────────────────────────────────┐
              │ ┌─────────────┐   ┌───────────┐   ┌────────────┐   ┌────────────┐ │
              │ │  Syslog-NG  │ → │   Kafka   │ → │ ClickHouse │ → │   Grafana  │ │
+             │ │  (no-parse) │   │  (buffer) │   │ (MV parser)│   │(dashboards)│ │
              │ └─────────────┘   └───────────┘   └────────────┘   └────────────┘ │
              └───────────────────────────────────────────────────────────────────┘
 ```
 
----
+### Supported Log Formats
 
-## Components
-
-| Component | Purpose |
-|------------|----------|
-| **Syslog-NG** | Receives syslog and forwards to Kafka |
-| **Kafka** | Buffers IPDR events |
-| **ClickHouse** | Stores raw and aggregated data |
-| **Grafana** | Dashboards and analytics |
+| Source | Format | Example Fields |
+|---|---|---|
+| **vBNG** | RFC 5424 syslog with `[nsess ...]` SD | `USERNAME`, `ISADDR`, `IDADDR`, `ISPORT`, `IDPORT`, `PROTO` |
+| **MikroTik** | Connection tracking text | `pppoe-user`, `src_ip:port`, `dst_ip:port`, `NAT ip:port` |
 
 ---
 
 ## Project Structure
 
-```text
-.
+```
+syslog/
+├── .env                       # Environment variables (ports, passwords)
+├── docker-compose.yml         # Production stack
 ├── clickhouse/
+│   ├── config.d/config.xml    # Server config (listen_host, memory)
+│   └── init/01-create-tables.sh  # Schema + MVs
 ├── grafana/
+│   ├── dashboards/            # Pre-built dashboards
+│   └── provisioning/          # Datasource + dashboard auto-config
 ├── kafka/
+│   ├── Dockerfile
+│   ├── entrypoint.sh
+│   └── scripts/
+├── simulators/                # Test log generators (separate stack)
+│   ├── docker-compose.yml
+│   ├── vbng/                  # Sends vBNG-format syslog
+│   └── mikrotik/              # Sends MikroTik-format syslog
 ├── syslog-ng/
-├── docker-compose.yml
-├── .env
-└── README.md
+│   ├── Dockerfile
+│   └── config/
+│       ├── syslog-ng.conf     # Main config (UDP 514 + TLS 6514)
+│       └── tls/               # Self-signed TLS certs (replace for prod)
+└── .env
 ```
 
 ---
@@ -89,14 +82,99 @@ Designed for:
 ## Quick Start
 
 ```bash
+# 1. Start production stack
+docker compose up -d
+
+# 2. (Optional) Start simulators for testing
+docker compose -f simulators/docker-compose.yml up -d
+
+# 3. Check data flowing
+docker compose exec clickhouse clickhouse-client --user ipdr_user --password ipdr_secret \
+  --query "SELECT subscriber_id, source_ip, destination_ip, protocol FROM ipdr.ipdr_records ORDER BY timestamp DESC LIMIT 5"
+```
+
+---
+
+## Configuration
+
+### Environment (`.env`)
+
+| Variable | Default | Description |
+|---|---|---|
+| `SYSLOG_UDP_PORT` | `514` | UDP syslog listen port |
+| `SYSLOG_TCP_PORT` | `514` | TCP syslog listen port |
+| `SYSLOG_TLS_PORT` | `6514` | TLS syslog listen port |
+| `CLICKHOUSE_DB` | `ipdr` | ClickHouse database name |
+| `CLICKHOUSE_USER` | `ipdr_user` | ClickHouse user |
+| `CLICKHOUSE_PASSWORD` | `ipdr_secret` | **Change for production** |
+| `GRAFANA_PORT` | `3000` | Grafana web UI port |
+| `GRAFANA_ADMIN_PASSWORD` | `admin1234` | **Change for production** |
+
+---
+
+## Ports
+
+| Port | Service | Protocol | Purpose |
+|---|---|---|---|
+| `514` | syslog-ng | UDP/TCP | Legacy syslog |
+| `6514` | syslog-ng | TCP TLS | Secure syslog |
+| `8123` | ClickHouse | TCP | HTTP API |
+| `9000` | ClickHouse | TCP | Native protocol |
+| `3000` | Grafana | TCP | Web UI |
+| `9092` | Kafka | TCP | Internal only |
+
+---
+
+## Simulators (Testing)
+
+Send realistic test data without real devices:
+
+```bash
+cd simulators
 docker compose up -d
 ```
 
-Check running containers
+This starts two containers that generate random vBNG and MikroTik syslog messages and send them to the production stack.
+
+To stop:
+```bash
+docker compose -f simulators/docker-compose.yml down
+```
+
+---
+
+## Production Deployment
 
 ```bash
-docker ps
+# 1. Replace TLS certs with real domain certs
+cp fullchain.pem syslog-ng/config/tls/server.crt
+cp privkey.pem  syslog-ng/config/tls/server.key
+
+# 2. Change passwords in .env
+# 3. Deploy
+docker compose up -d
 ```
+
+---
+
+## Architecture Details
+
+### syslog-ng
+- `flags(no-parse)` preserves raw RFC 5424 structured data
+- UDP (514) + TLS (6514) listeners
+- Forwards raw messages to Kafka topic `ipdr-events`
+
+### ClickHouse
+- `kafka_ipdr` — Kafka engine table consuming `ipdr-events`
+- `kafka_ipdr_mv` — Materialized View parsing 3 formats:
+  - JSON (backward compatible)
+  - vBNG `KEY="VALUE"` pairs
+  - MikroTik `in:<user>` + `IP:port` patterns
+- Aggregation MVs: daily, hourly, top destinations, top apps, subscriber bandwidth
+
+### Grafana
+- Auto-provisioned ClickHouse datasource
+- 5 pre-built dashboards: overview, bandwidth, protocol distribution, subscriber ranking, traffic volume
 
 View logs
 

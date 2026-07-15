@@ -283,5 +283,19 @@
   "time": {
     "from": "now-1h",
     "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "collector_id",
+        "type": "query",
+        "query": "SELECT DISTINCT collector_id FROM ipdr.ipdr_records ORDER BY collector_id",
+        "datasource": "ClickHouse",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "label": "Source"
+      }
+    ]
   }
 }

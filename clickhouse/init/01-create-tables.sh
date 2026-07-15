@@ -175,59 +175,127 @@ clickhouse-client --query "
         kafka_num_consumers = 1;
 "
 
-clickhouse-client --query "
-    CREATE MATERIALIZED VIEW IF NOT EXISTS ${DB}.kafka_ipdr_mv
-    TO ${DB}.ipdr_records AS
-    SELECT
+cat > /tmp/kafka_mv.sql << 'MVEOF'
+CREATE MATERIALIZED VIEW IF NOT EXISTS __DB__.kafka_ipdr_mv
+TO __DB__.ipdr_records AS
+SELECT
+    multiIf(
+        JSONExtractString(extract(raw_message, '{.*}'), 'ISODATE') != '',
+        parseDateTimeBestEffortOrZero(JSONExtractString(extract(raw_message, '{.*}'), 'ISODATE')),
+        extract(raw_message, $$time='([^']+)'$$) != '',
+        parseDateTimeBestEffortOrZero(extract(raw_message, $$time='([^']+)'$$)),
+        extract(raw_message, $$^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})$$) != '',
+        parseDateTimeBestEffortOrZero(extract(raw_message, $$^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})$$)),
+        now()
+    ) AS timestamp,
+    multiIf(
+        JSONExtractString(extract(raw_message, '{.*}'), 'collector_id') != '',
+        JSONExtractString(extract(raw_message, '{.*}'), 'collector_id'),
+        extract(raw_message, $$^\S+\s+\S+\s+(\S+)$$) != '',
+        extract(raw_message, $$^\S+\s+\S+\s+(\S+)$$),
+        extract(raw_message, $$(\S+:\s+\S+)\s+forward:$$) != '',
+        extract(raw_message, $$(\S+:\s+\S+)\s+forward:$$),
+        ''
+    ) AS collector_id,
+    multiIf(
+        JSONExtractString(extract(raw_message, '{.*}'), 'subscriber_id') != '',
+        JSONExtractString(extract(raw_message, '{.*}'), 'subscriber_id'),
+        extract(raw_message, $$USERNAME="([^"]+)"$$) != '',
+        extract(raw_message, $$USERNAME="([^"]+)"$$),
+        extract(raw_message, $$in:<([^>]+)>$$) != '',
+        extract(raw_message, $$in:<([^>]+)>$$),
+        ''
+    ) AS subscriber_id,
+    IPv6StringToNum(
         multiIf(
-            JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'ISODATE') = '',
-            now(),
-            parseDateTimeBestEffortOrZero(JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'ISODATE'))
-        ) AS timestamp,
-        JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'subscriber_id') AS subscriber_id,
-        IPv6StringToNum(
-            multiIf(
-                JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'source_ip') = '', '::',
-                JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'source_ip')
-            )
-        ) AS source_ip,
-        IPv6StringToNum(
-            multiIf(
-                JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'destination_ip') = '', '::',
-                JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'destination_ip')
-            )
-        ) AS destination_ip,
-        toUInt16OrDefault(
-            JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'source_port')
-        ) AS source_port,
-        toUInt16OrDefault(
-            JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'destination_port')
-        ) AS destination_port,
-        lower(
-            JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'protocol')
-        ) AS protocol,
-        JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'service_type') AS service_type,
-        JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'apn') AS apn,
-        JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'rat_type') AS rat_type,
-        toUInt64OrDefault(
-            JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'bytes_in')
-        ) AS bytes_in,
-        toUInt64OrDefault(
-            JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'bytes_out')
-        ) AS bytes_out,
-        toUInt64OrDefault(
-            JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'packets_in')
-        ) AS packets_in,
-        toUInt64OrDefault(
-            JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'packets_out')
-        ) AS packets_out,
-        toUInt32OrDefault(
-            JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'duration_seconds')
-        ) AS duration_seconds,
-        JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'status') AS status,
-        extract(raw_message, '\\\\{.*\\\\}') AS raw_message
-    FROM ${DB}.kafka_ipdr
-    WHERE JSONExtractString(extract(raw_message, '\\\\{.*\\\\}'), 'subscriber_id') != '';
-"
+            JSONExtractString(extract(raw_message, '{.*}'), 'source_ip') != '',
+            JSONExtractString(extract(raw_message, '{.*}'), 'source_ip'),
+            extract(raw_message, $$ISADDR="([^"]+)"$$) != '',
+            extract(raw_message, $$ISADDR="([^"]+)"$$),
+            extract(raw_message, $$(\d+\.\d+\.\d+\.\d+):\d+\s*->$$) != '',
+            extract(raw_message, $$(\d+\.\d+\.\d+\.\d+):\d+\s*->$$),
+            '::'
+        )
+    ) AS source_ip,
+    IPv6StringToNum(
+        multiIf(
+            JSONExtractString(extract(raw_message, '{.*}'), 'destination_ip') != '',
+            JSONExtractString(extract(raw_message, '{.*}'), 'destination_ip'),
+            extract(raw_message, $$IDADDR="([^"]+)"$$) != '',
+            extract(raw_message, $$IDADDR="([^"]+)"$$),
+            extract(raw_message, $$->\s*(\d+\.\d+\.\d+\.\d+):\d+$$) != '',
+            extract(raw_message, $$->\s*(\d+\.\d+\.\d+\.\d+):\d+$$),
+            '::'
+        )
+    ) AS destination_ip,
+    toUInt16OrDefault(
+        multiIf(
+            JSONExtractString(extract(raw_message, '{.*}'), 'source_port') != '',
+            JSONExtractString(extract(raw_message, '{.*}'), 'source_port'),
+            extract(raw_message, $$ISPORT="([^"]+)"$$) != '',
+            extract(raw_message, $$ISPORT="([^"]+)"$$),
+            extract(raw_message, $$\b\d+\.\d+\.\d+\.\d+:(\d+)\s*->$$) != '',
+            extract(raw_message, $$\b\d+\.\d+\.\d+\.\d+:(\d+)\s*->$$),
+            '0'
+        )
+    ) AS source_port,
+    toUInt16OrDefault(
+        multiIf(
+            JSONExtractString(extract(raw_message, '{.*}'), 'destination_port') != '',
+            JSONExtractString(extract(raw_message, '{.*}'), 'destination_port'),
+            extract(raw_message, $$IDPORT="([^"]+)"$$) != '',
+            extract(raw_message, $$IDPORT="([^"]+)"$$),
+            extract(raw_message, $$->\s*\d+\.\d+\.\d+\.\d+:(\d+)$$) != '',
+            extract(raw_message, $$->\s*\d+\.\d+\.\d+\.\d+:(\d+)$$),
+            '0'
+        )
+    ) AS destination_port,
+    lower(
+        multiIf(
+            JSONExtractString(extract(raw_message, '{.*}'), 'protocol') != '',
+            JSONExtractString(extract(raw_message, '{.*}'), 'protocol'),
+            extract(raw_message, $$PROTO="([^"]+)"$$) != '',
+            extract(raw_message, $$PROTO="([^"]+)"$$),
+            extract(raw_message, $$proto\s+(\w+)$$) != '',
+            extract(raw_message, $$proto\s+(\w+)$$),
+            ''
+        )
+    ) AS protocol,
+    multiIf(
+        JSONExtractString(extract(raw_message, '{.*}'), 'service_type') != '',
+        JSONExtractString(extract(raw_message, '{.*}'), 'service_type'),
+        'nat_session'
+    ) AS service_type,
+    JSONExtractString(extract(raw_message, '{.*}'), 'apn') AS apn,
+    multiIf(
+        JSONExtractString(extract(raw_message, '{.*}'), 'rat_type') != '',
+        JSONExtractString(extract(raw_message, '{.*}'), 'rat_type'),
+        extract(raw_message, $$IATYP="([^"]+)"$$) != '',
+        extract(raw_message, $$IATYP="([^"]+)"$$),
+        ''
+    ) AS rat_type,
+    toUInt64OrDefault(JSONExtractString(extract(raw_message, '{.*}'), 'bytes_in')) AS bytes_in,
+    toUInt64OrDefault(JSONExtractString(extract(raw_message, '{.*}'), 'bytes_out')) AS bytes_out,
+    toUInt64OrDefault(JSONExtractString(extract(raw_message, '{.*}'), 'packets_in')) AS packets_in,
+    toUInt64OrDefault(JSONExtractString(extract(raw_message, '{.*}'), 'packets_out')) AS packets_out,
+    toUInt32OrDefault(JSONExtractString(extract(raw_message, '{.*}'), 'duration_seconds')) AS duration_seconds,
+    multiIf(
+        JSONExtractString(extract(raw_message, '{.*}'), 'status') != '',
+        JSONExtractString(extract(raw_message, '{.*}'), 'status'),
+        extract(raw_message, 'SADD') != '',
+        'active',
+        extract(raw_message, 'SDEL') != '',
+        'success',
+        ''
+    ) AS status,
+    raw_message
+FROM __DB__.kafka_ipdr
+WHERE
+    JSONExtractString(extract(raw_message, '{.*}'), 'subscriber_id') != ''
+    OR extract(raw_message, $$USERNAME="([^"]+)"$$) != ''
+    OR extract(raw_message, $$in:<([^>]+)>$$) != '';
+MVEOF
+
+sed "s/__DB__/${CLICKHOUSE_DB:-ipdr}/g" /tmp/kafka_mv.sql | clickhouse-client
 
 echo "[init] Kafka engine table created. Data will start flowing into ipdr_records."

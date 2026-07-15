@@ -1,0 +1,34 @@
+# =============================================================================
+# IPDR Platform — Simulators (local testing only)
+# =============================================================================
+# Connects to the production stack network to inject test data.
+# Usage: docker compose -f docker-compose.yml -f simulators/docker-compose.yml up -d
+#    Or: docker compose -p ipdr-sim -f simulators/docker-compose.yml up -d
+# =============================================================================
+
+name: ipdr-sim
+
+services:
+
+  vbng:
+    build:
+      context: ./vbng
+      dockerfile: Dockerfile
+    container_name: ipdr-sim-vbng
+    restart: no
+    networks:
+      - ipdr-net
+
+  mikrotik:
+    build:
+      context: ./mikrotik
+      dockerfile: Dockerfile
+    container_name: ipdr-sim-mikrotik
+    restart: no
+    networks:
+      - ipdr-net
+
+networks:
+  ipdr-net:
+    name: ipdr-net
+    external: true

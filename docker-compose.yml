@@ -142,24 +142,9 @@ services:
       retries: 5
       start_period: 30s
 
-  # ---------------------------------------------------------------------------
-  # mock-bras — generates synthetic IPDR traffic for testing
-  # ---------------------------------------------------------------------------
-  mock-bras:
-    build:
-      context: ./mock-bras
-      dockerfile: Dockerfile
-    container_name: ipdr-mock-bras
-    restart: unless-stopped
-    networks:
-      - ipdr-net
-    depends_on:
-      syslog-ng:
-        condition: service_healthy
-
 networks:
   ipdr-net:
-    name: ipdr-combined
+    name: ipdr-net
     driver: bridge
 
 volumes:
