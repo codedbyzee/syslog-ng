@@ -1,0 +1,450 @@
+{
+  "title": "IPDR Subscriber Ranking",
+  "uid": "ipdr-subscriber-ranking",
+  "version": 1,
+  "schemaVersion": 39,
+  "tags": [
+    "ipdr",
+    "subscribers"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "60s",
+  "panels": [
+    {
+      "title": "Top 20 Subscribers by Bandwidth (Today)",
+      "type": "table",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT subscriber_id, total_bytes / 1073741824 AS gb, total_bytes_in / 1073741824 AS gb_in, total_bytes_out / 1073741824 AS gb_out, session_count, error_count, unique_destinations, unique_apns FROM ipdr.ipdr_subscriber_bandwidth WHERE day = today() ORDER BY total_bytes DESC LIMIT 20",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Top bandwidth consumers today with breakdown metrics",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              },
+              {
+                "id": "displayName",
+                "value": "Total GB"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb_in"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              },
+              {
+                "id": "displayName",
+                "value": "Downstream GB"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb_out"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              },
+              {
+                "id": "displayName",
+                "value": "Upstream GB"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "session_count"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "displayName",
+                "value": "Sessions"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "error_count"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "displayName",
+                "value": "Errors"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "color-text",
+                  "colorMode": "thresholds"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Top 10 Subscribers (7 Days)",
+      "type": "table",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT subscriber_id, sum(total_bytes) / 1073741824 AS gb, sum(session_count) AS sessions, sum(error_count) AS errors, uniqExact(service_type) AS services_used FROM ipdr.ipdr_subscriber_bandwidth WHERE day >= today() - 7 GROUP BY subscriber_id ORDER BY gb DESC LIMIT 10",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Top subscribers over the last 7 days",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              },
+              {
+                "id": "displayName",
+                "value": "Total GB"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Subscriber Count Trend (7d)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 1,
+          "rawSql": "SELECT day, uniqExact(subscriber_id) AS active_subscribers FROM ipdr.ipdr_subscriber_bandwidth WHERE day >= today() - 7 GROUP BY day ORDER BY day",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "custom": {
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "showPoints": "always"
+          }
+        }
+      },
+      "description": "Daily unique active subscriber count over the last 7 days"
+    },
+    {
+      "title": "Subscribers with Errors (Today)",
+      "type": "table",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT subscriber_id, session_count, error_count, error_count / session_count * 100 AS error_pct, total_bytes / 1073741824 AS gb FROM ipdr.ipdr_subscriber_bandwidth WHERE day = today() AND error_count > 0 ORDER BY error_count DESC LIMIT 20",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Subscribers experiencing session errors today",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "error_pct"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "color-text",
+                  "colorMode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Subscriber Growth (30d)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT uniqExact(subscriber_id) AS total FROM ipdr.ipdr_subscriber_bandwidth WHERE day >= today() - 30",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      },
+      "description": "Total unique subscribers in the last 30 days"
+    },
+    {
+      "title": "Avg Usage per Subscriber (7d)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT sum(total_bytes) / uniqExact(subscriber_id) AS avg_bytes FROM ipdr.ipdr_subscriber_bandwidth WHERE day >= today() - 7",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        }
+      },
+      "description": "Average bandwidth consumption per subscriber over 7 days"
+    },
+    {
+      "title": "Subscriber Daily Usage Distribution (Today)",
+      "type": "histogram",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 14
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT total_bytes FROM ipdr.ipdr_subscriber_bandwidth WHERE day = today()",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "description": "Distribution of per-subscriber bandwidth today"
+    },
+    {
+      "title": "New vs Returning Subscribers (7d)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 1,
+          "rawSql": "SELECT day, count() AS subscribers FROM ipdr.ipdr_subscriber_bandwidth WHERE day >= today() - 7 GROUP BY day ORDER BY day",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineInterpolation": "smooth",
+            "fillOpacity": 25
+          }
+        }
+      },
+      "description": "Daily active subscriber count trend"
+    },
+    {
+      "title": "Top Subscribers by Service Type (Today)",
+      "type": "table",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT subscriber_id, service_type, sum(total_bytes) / 1073741824 AS gb, sum(session_count) AS sessions FROM ipdr.ipdr_subscriber_bandwidth WHERE day = today() GROUP BY subscriber_id, service_type ORDER BY gb DESC LIMIT 20",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Top subscriber-service combinations by bandwidth today",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  }
+}

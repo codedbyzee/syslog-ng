@@ -1,0 +1,70 @@
+<clickhouse>
+    <!--
+    ============================================================================
+    IPDR ClickHouse — Server Configuration Overrides
+    ============================================================================
+    Merged with the default config.xml at /etc/clickhouse-server/config.xml.
+    Settings here override the defaults for IPDR production use.
+    ============================================================================
+    -->
+
+    <!-- Listen on all interfaces for container networking -->
+    <listen_host>0.0.0.0</listen_host>
+    <listen_try>1</listen_try>
+
+    <!-- Maximum number of concurrent queries -->
+    <max_concurrent_queries>100</max_concurrent_queries>
+
+    <!-- Memory limits -->
+    <max_server_memory_usage>0</max_server_memory_usage>
+    <max_memory_usage_for_all_queries>0</max_memory_usage_for_all_queries>
+
+    <!-- Merge tree settings optimized for time-series IPDR data -->
+    <merge_tree>
+        <parts_to_throw_insert>300</parts_to_throw_insert>
+        <parts_to_delay_insert>150</parts_to_delay_insert>
+        <max_delay_to_insert>256</max_delay_to_insert>
+        <max_suspicious_broken_parts>5</max_suspicious_broken_parts>
+    </merge_tree>
+
+    <!-- Query log for auditing -->
+    <query_log>
+        <database>system</database>
+        <table>query_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+    </query_log>
+
+    <!-- Trace log for debugging -->
+    <trace_log>
+        <database>system</database>
+        <table>trace_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+    </trace_log>
+
+    <!-- Metric log for monitoring -->
+    <metric_log>
+        <database>system</database>
+        <table>metric_log</table>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        <collect_interval_milliseconds>1000</collect_interval_milliseconds>
+    </metric_log>
+
+    <!-- Asynchronous metrics -->
+    <asynchronous_metric_log>
+        <database>system</database>
+        <table>asynchronous_metric_log</table>
+        <flush_interval_milliseconds>60000</flush_interval_milliseconds>
+    </asynchronous_metric_log>
+
+    <!-- Compression for time-series data -->
+    <compression>
+        <case>
+            <min_part_size>1073741824</min_part_size>
+            <min_part_size_ratio>0.5</min_part_size_ratio>
+            <method>zstd</method>
+            <level>3</level>
+        </case>
+    </compression>
+</clickhouse>

@@ -1,0 +1,16 @@
+<clickhouse>
+    <!--
+    ============================================================================
+    IPDR ClickHouse — Macros for Distributed Queries & Replicated Tables
+    ============================================================================
+    These macros are used in table definitions and distributed DDL queries.
+    For single-node deployments, shard=1 and replica=1 are sufficient.
+    ============================================================================
+    -->
+    <macros>
+        <shard>01</shard>
+        <replica>01</replica>
+        <cluster>ipdr-cluster</cluster>
+        <ipdr_database>ipdr</ipdr_database>
+    </macros>
+</clickhouse>

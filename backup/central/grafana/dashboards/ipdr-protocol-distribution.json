@@ -1,0 +1,437 @@
+{
+  "title": "IPDR Protocol & Application Distribution",
+  "uid": "ipdr-protocol-distribution",
+  "version": 1,
+  "schemaVersion": 39,
+  "tags": [
+    "ipdr",
+    "protocols",
+    "applications"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "60s",
+  "panels": [
+    {
+      "title": "Protocol Distribution (Today)",
+      "type": "piechart",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT protocol, sum(session_count) AS sessions FROM ipdr.ipdr_top_applications WHERE day = today() AND protocol != '' GROUP BY protocol ORDER BY sessions DESC",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Session count distribution by transport protocol",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "title": "Protocol Bandwidth (Today)",
+      "type": "piechart",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT protocol, sum(total_bytes) / 1073741824 AS gb FROM ipdr.ipdr_top_applications WHERE day = today() AND protocol != '' GROUP BY protocol ORDER BY gb DESC",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Bandwidth distribution by transport protocol",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decgbytes"
+        }
+      }
+    },
+    {
+      "title": "Protocol Trend (7d)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 1,
+          "rawSql": "SELECT day, protocol, sum(session_count) AS sessions FROM ipdr.ipdr_top_applications WHERE day >= today() - 7 AND protocol != '' GROUP BY day, protocol ORDER BY day",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      },
+      "description": "Daily session count trend by protocol over the last 7 days"
+    },
+    {
+      "title": "Top Destinations by Protocol (Today)",
+      "type": "table",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT destination_ip, protocol, sum(total_bytes) / 1073741824 AS gb, sum(session_count) AS sessions, sum(unique_subscribers) AS users FROM ipdr.ipdr_top_destinations WHERE day = today() GROUP BY destination_ip, protocol ORDER BY gb DESC LIMIT 20",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Top destination IPs with protocol breakdown",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Application Distribution (Today)",
+      "type": "piechart",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT service_type, sum(total_bytes) / 1073741824 AS gb FROM ipdr.ipdr_top_applications WHERE day = today() AND service_type != '' GROUP BY service_type ORDER BY gb DESC LIMIT 10",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Bandwidth distribution by application/service type",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decgbytes"
+        }
+      }
+    },
+    {
+      "title": "Protocol-Application Matrix (Today)",
+      "type": "table",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT protocol, service_type, sum(total_bytes) / 1073741824 AS gb, sum(total_bytes_in) / 1073741824 AS gb_in, sum(total_bytes_out) / 1073741824 AS gb_out, sum(session_count) AS sessions, sum(unique_subscribers) AS users, sum(total_bytes) / sum(total_duration_sec) AS avg_throughput FROM ipdr.ipdr_top_applications WHERE day = today() AND protocol != '' AND service_type != '' GROUP BY protocol, service_type ORDER BY gb DESC LIMIT 20",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Cross-tab of protocol \u00d7 service type with bandwidth and throughput metrics",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              },
+              {
+                "id": "displayName",
+                "value": "Total GB"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb_in"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              },
+              {
+                "id": "displayName",
+                "value": "Down GB"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb_out"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              },
+              {
+                "id": "displayName",
+                "value": "Up GB"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg_throughput"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
+              },
+              {
+                "id": "displayName",
+                "value": "Avg Throughput"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Port Distribution (Top 20, Today)",
+      "type": "table",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT destination_port, protocol, count() AS sessions, sum(bytes_total) / 1073741824 AS gb FROM ipdr.ipdr_records WHERE timestamp >= toStartOfDay(now()) AND destination_port > 0 GROUP BY destination_port, protocol ORDER BY sessions DESC LIMIT 20",
+          "queryType": "sql"
+        }
+      ],
+      "description": "Top destination ports by session count and bandwidth",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gb"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decgbytes"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Protocol Stats",
+      "type": "row",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "collapsed": false
+    },
+    {
+      "title": "Unique Protocols Seen",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 25
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT uniqExact(protocol) AS count FROM ipdr.ipdr_top_applications WHERE day = today() AND protocol != ''",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      },
+      "description": "Number of unique protocols seen today"
+    },
+    {
+      "title": "TCP Bandwidth Share",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 25
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT sumIf(total_bytes, protocol = 'tcp') / sum(total_bytes) * 100 AS tcp_pct FROM ipdr.ipdr_top_applications WHERE day = today()",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        }
+      },
+      "description": "TCP's share of total bandwidth today"
+    },
+    {
+      "title": "Unique Service Types",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 25
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT uniqExact(service_type) AS count FROM ipdr.ipdr_top_applications WHERE day = today() AND service_type != ''",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        }
+      },
+      "description": "Number of unique application types seen today"
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  }
+}

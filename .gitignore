@@ -1,0 +1,31 @@
+# Environment
+.env
+*.local
+
+# TLS certificates
+syslog-ng/tls/
+**/tls/
+
+# Syslog-ng runtime logs
+**/log/*.s
+**/log/*.u
+**/log/current
+**/log/lock
+**/log/state
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log

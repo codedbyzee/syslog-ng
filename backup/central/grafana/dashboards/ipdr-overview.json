@@ -1,0 +1,286 @@
+{
+  "title": "IPDR Platform Overview",
+  "uid": "ipdr-overview",
+  "version": 2,
+  "schemaVersion": 39,
+  "tags": [
+    "ipdr",
+    "overview"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "30s",
+  "panels": [
+    {
+      "title": "Logs per Second",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 1,
+          "rawSql": "SELECT toStartOfInterval(timestamp, INTERVAL 1 SECOND) AS t, count() AS c FROM ipdr.ipdr_records WHERE $__timeFilter(timestamp) GROUP BY t ORDER BY t",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Bytes per Second",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 1,
+          "rawSql": "SELECT toStartOfInterval(timestamp, INTERVAL 1 SECOND) AS t, sum(bytes_total) AS bytes FROM ipdr.ipdr_records WHERE $__timeFilter(timestamp) GROUP BY t ORDER BY t",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Total Sessions Today",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT count() AS total FROM ipdr.ipdr_records WHERE timestamp >= toStartOfDay(now())",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      }
+    },
+    {
+      "title": "Active Subscribers (5 min)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT uniqExact(subscriber_id) AS active FROM ipdr.ipdr_records WHERE timestamp >= now() - INTERVAL 300 SECOND",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        }
+      }
+    },
+    {
+      "title": "Bandwidth Today",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT sum(bytes_total) AS total FROM ipdr.ipdr_records WHERE timestamp >= toStartOfDay(now())",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        }
+      }
+    },
+    {
+      "title": "Error Rate (5 min)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT countIf(status != 'success') / count() * 100 AS pct FROM ipdr.ipdr_records WHERE timestamp >= now() - INTERVAL 300 SECOND",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Hourly Traffic (24h)",
+      "type": "bargauge",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT toHour(hour) AS h, sum(total_bytes) / 1048576 AS mb FROM ipdr.ipdr_hourly_traffic WHERE hour >= now() - INTERVAL 1 DAY GROUP BY h ORDER BY h",
+          "queryType": "sql"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "megbytes",
+          "color": {
+            "mode": "continuous-blues"
+          }
+        }
+      }
+    },
+    {
+      "title": "Top Applications (Today)",
+      "type": "table",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT service_type, protocol, sum(total_bytes) / 1048576 AS mb, sum(session_count) AS sessions, sum(unique_subscribers) AS users FROM ipdr.ipdr_top_applications WHERE day = today() GROUP BY service_type, protocol ORDER BY mb DESC LIMIT 10",
+          "queryType": "sql"
+        }
+      ]
+    },
+    {
+      "title": "Top Subscribers (Today)",
+      "type": "table",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "ClickHouse"
+          },
+          "format": 0,
+          "rawSql": "SELECT subscriber_id, total_bytes / 1073741824 AS gb, session_count, error_count FROM ipdr.ipdr_subscriber_bandwidth WHERE day = today() ORDER BY total_bytes DESC LIMIT 10",
+          "queryType": "sql"
+        }
+      ]
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  }
+}

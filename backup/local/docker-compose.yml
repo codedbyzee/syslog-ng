@@ -1,0 +1,24 @@
+# =============================================================================
+# IPDR Platform — Local Dev Tools
+# =============================================================================
+# Dev-only utilities, NOT deployed to production.
+# Use to inspect Kafka topics, debug, etc.
+# =============================================================================
+
+name: ipdr-local
+
+services:
+  # ---------------------------------------------------------------------------
+  # Kafka UI — web GUI for browsing topics and messages
+  # Access at http://localhost:${KAFKA_UI_PORT:-8081}
+  # ---------------------------------------------------------------------------
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    ports:
+      - "${KAFKA_UI_PORT:-8081}:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: ${KAFKA_CLUSTER_NAME:-local}
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ${LOCAL_KAFKA_BROKER:-localhost:9092}
+      KAFKA_CLUSTERS_0_TOPICS_PATTERNS: ipdr-*
