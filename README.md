@@ -41,9 +41,13 @@ Designed for:
 ## Architecture & Data Flow
 
 ```
-                                    ┌─────────────────┐
-                                    │  MikroTik/vBNG  │  ← Provided by customer
-                                    └────────┬────────┘
+                                    ┌─────────────────────┐
+                                    │  MikroTik/vBNG/etc  │
+                                    ├─────────────────────┤
+                                    │  MikroTik/vBNG/etc  │
+                                    ├─────────────────────┤
+                                    │  MikroTik/vBNG/etc  │
+                                    └────────┬────────────┘
                                              │ UDP :514
                                              ▼
                 ┌─────────────────────────────────────────────────────────────┐
